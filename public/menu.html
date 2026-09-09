@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canteen Menu — CampusBite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <main class="main-content">
+        <div id="alertBox"></div>
+        <div class="page-hero">
+            <div class="page-hero-title-group">
+                <a href="canteens.html" class="back-link"><i data-lucide="arrow-left"></i> Back to Canteens</a>
+                <h1 class="page-title" id="pageTitle">Canteen Menu</h1>
+                <p class="page-subtitle" id="pageSubtitle">Loading menu...</p>
+            </div>
+            <div class="page-actions">
+                <a id="feedbackLink" class="btn btn-secondary btn-sm"><i data-lucide="message-square"></i> Student Reviews</a>
+                <a id="rateLink" class="btn btn-outline btn-sm"><i data-lucide="star"></i> Rate Canteen</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3>Current Menu Items</h3>
+                <span style="font-size: 0.8rem; color: var(--slate-500);">Prices in INR (₹)</span>
+            </div>
+            <div class="table-responsive">
+                <table class="modern-table">
+                    <thead>
+                        <tr>
+                            <th>Dish / Item Name</th>
+                            <th>Price</th>
+                            <th>Student Rating</th>
+                            <th class="text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="menuBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/navbar.js"></script>
+    <script>
+        const cid = new URLSearchParams(window.location.search).get('cid');
+        const menuBody = document.getElementById('menuBody');
+        const alertBox = document.getElementById('alertBox');
+
+        function showError(message) {
+            alertBox.innerHTML = `<div class="alert alert-error"><i data-lucide="alert-circle"></i><div>${message}</div></div>`;
+            lucide.createIcons();
+        }
+
+        async function loadMenu() {
+            if (!cid || !/^\d+$/.test(cid)) {
+                throw new Error('A valid canteen was not specified.');
+            }
+
+            const response = await fetch(`/api/canteens/${cid}/menu`);
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Failed to load menu.');
+
+            document.title = `${data.canteen.cname} Menu — CampusBite`;
+            document.getElementById('pageTitle').textContent = `${data.canteen.cname} — Live Menu`;
+            document.getElementById('pageSubtitle').innerHTML =
+                `<i data-lucide="map-pin"></i> ${data.canteen.location || 'Campus'} · ${data.items.length} available items`;
+            document.getElementById('feedbackLink').href = `feedback.html?cid=${encodeURIComponent(cid)}`;
+            document.getElementById('rateLink').href = `rate.html?cid=${encodeURIComponent(cid)}`;
+
+            if (data.items.length === 0) {
+                menuBody.innerHTML = '<tr><td colspan="4" class="text-center" style="padding: 2rem; color: var(--slate-500);">No items currently listed on this menu.</td></tr>';
+                return;
+            }
+
+            menuBody.innerHTML = data.items.map(item => `
+                <tr>
+                    <td class="td-strong">${item.item_name}</td>
+                    <td class="td-number" style="font-size: 1.05rem; color: var(--slate-900);">₹${Number(item.price).toFixed(2)}</td>
+                    <td>
+                        ${item.avg_rating === null
+                            ? '<span style="font-size: 0.8rem; color: var(--slate-400);">No ratings yet</span>'
+                            : `<span class="flex items-center gap-1"><i data-lucide="star" class="star-filled"></i><span class="td-number font-bold">${Number(item.avg_rating).toFixed(1)}</span><span style="font-size: 0.75rem; color: var(--slate-400);">(${item.total_ratings})</span></span>`}
+                    </td>
+                    <td class="text-right">
+                        <a href="rate-dish.html?itemid=${item.itemid}&cid=${encodeURIComponent(cid)}" class="btn btn-outline btn-sm">
+                            <i data-lucide="star"></i> Rate
+                        </a>
+                        <a href="dish-compare.html?item=${encodeURIComponent(item.item_name)}" class="btn btn-ghost btn-sm">
+                            <i data-lucide="split"></i> Compare
+                        </a>
+                    </td>
+                </tr>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        loadMenu().catch(error => showError(error.message));
+        lucide.createIcons();
+    </script>
+</body>
+</html>

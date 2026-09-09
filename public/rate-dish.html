@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rate Dish — CampusBite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <main class="main-content">
+        <div id="alertBox"></div>
+        <div class="page-hero">
+            <div class="page-hero-title-group">
+                <a id="backLink" href="canteens.html" class="back-link"><i data-lucide="arrow-left"></i> Back to Canteen</a>
+                <h1 class="page-title" id="pageTitle">Rate Dish</h1>
+                <p class="page-subtitle" id="pageSubtitle">Share your experience with this dish.</p>
+            </div>
+        </div>
+
+        <div class="card" style="max-width: 560px; margin: 0 auto;">
+            <div class="card-header">
+                <h3 id="itemTitle">Dish Rating</h3>
+                <span style="font-size: 0.8rem; color: var(--slate-500);">1 = Poor · 5 = Excellent</span>
+            </div>
+            <div class="card-body">
+            <div id="existingRating" class="callout" style="margin-bottom: 1.25rem;"></div>
+            <form id="dishRatingForm">
+                    <div class="rating-criterion-row" style="border-bottom: 0;">
+                        <div class="criterion-info">
+                            <div class="criterion-title"><i data-lucide="star" style="color: var(--amber-500); vertical-align: -0.15em;"></i> Overall Dish Rating</div>
+                            <div class="criterion-desc">Rate the taste and quality of this dish.</div>
+                        </div>
+                        <div class="star-picker" role="radiogroup" aria-label="Overall Dish Rating">
+                            <button type="button" class="star-btn" data-value="1">1 ★</button>
+                            <button type="button" class="star-btn" data-value="2">2 ★</button>
+                            <button type="button" class="star-btn" data-value="3">3 ★</button>
+                            <button type="button" class="star-btn" data-value="4">4 ★</button>
+                            <button type="button" class="star-btn" data-value="5">5 ★</button>
+                        </div>
+                    </div>
+                    <input type="hidden" id="rating" value="0">
+                    <div class="mt-4 flex justify-between items-center" style="border-top: 1px solid var(--slate-100); padding-top: 1.25rem;">
+                        <a id="cancelLink" href="canteens.html" class="btn btn-ghost btn-sm">Cancel</a>
+                        <button type="submit" class="btn btn-primary btn-lg"><i data-lucide="send"></i> Submit Rating</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/navbar.js"></script>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const itemid = params.get('itemid');
+        const cid = params.get('cid');
+        const alertBox = document.getElementById('alertBox');
+
+        function showAlert(message, type = 'error') {
+            alertBox.innerHTML = `<div class="alert alert-${type}"><i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}"></i><div>${message}</div></div>`;
+            lucide.createIcons();
+        }
+
+        async function loadDish() {
+            if (!itemid || !/^\d+$/.test(itemid) || !cid || !/^\d+$/.test(cid)) {
+                throw new Error('A valid dish and canteen were not specified.');
+            }
+            const response = await fetch(`/api/canteens/${cid}/menu`);
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Could not load the dish.');
+            const item = data.items.find(menuItem => String(menuItem.itemid) === itemid);
+            if (!item) throw new Error('Dish not found in this canteen menu.');
+
+            document.title = `Rate ${item.item_name} — CampusBite`;
+            document.getElementById('pageTitle').textContent = `Rate ${item.item_name}`;
+            document.getElementById('itemTitle').textContent = item.item_name;
+            document.getElementById('pageSubtitle').textContent = `${data.canteen.cname} · ₹${Number(item.price).toFixed(2)}`;
+            document.getElementById('existingRating').innerHTML = item.avg_rating === null
+                ? '<strong>No ratings yet</strong><br><span style="color: var(--slate-500);">Be the first person to rate this dish.</span>'
+                : `<strong>Existing rating: ${Number(item.avg_rating).toFixed(1)} ★</strong><br><span style="color: var(--slate-500);">Based on ${item.total_ratings} rating${Number(item.total_ratings) === 1 ? '' : 's'} for this dish at ${data.canteen.cname}.</span>`;
+            document.getElementById('backLink').href = `menu.html?cid=${cid}`;
+            document.getElementById('cancelLink').href = `menu.html?cid=${cid}`;
+        }
+
+        document.querySelectorAll('.star-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                const value = Number(button.dataset.value);
+                document.getElementById('rating').value = value;
+                document.querySelectorAll('.star-btn').forEach(star => {
+                    star.classList.toggle('selected', Number(star.dataset.value) <= value);
+                });
+            });
+        });
+
+        document.getElementById('dishRatingForm').addEventListener('submit', async event => {
+            event.preventDefault();
+            const rating = Number(document.getElementById('rating').value);
+            if (rating < 1 || rating > 5) {
+                showAlert('Please select a rating from 1 to 5 stars.');
+                return;
+            }
+
+            const response = await fetch(`/api/dishes/${itemid}/rate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rating })
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                showAlert(data.error || 'Could not submit dish rating.');
+                return;
+            }
+            showAlert(data.message, 'success');
+            document.getElementById('dishRatingForm').reset();
+            document.getElementById('rating').value = 0;
+            document.querySelectorAll('.star-btn').forEach(star => star.classList.remove('selected'));
+        });
+
+        loadDish().catch(error => showAlert(error.message));
+        lucide.createIcons();
+    </script>
+</body>
+</html>

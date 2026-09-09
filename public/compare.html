@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOPSIS Ranking Engine — CampusBite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <main class="main-content">
+        <div class="page-hero">
+            <div class="page-hero-title-group">
+                <a href="canteens.html" class="back-link"><i data-lucide="arrow-left"></i> Back to Canteens</a>
+                <h1 class="page-title">TOPSIS Ranking Engine</h1>
+                <p class="page-subtitle">Multi-Criteria Decision Making (MCDM) ranking canteens based on Ideal-Best proximity.</p>
+            </div>
+        </div>
+
+        <div class="callout">
+            <div class="callout-title"><i data-lucide="info" style="color: var(--primary-600);"></i> How TOPSIS Works</div>
+            <p>Calculates Euclidean distances to an Ideal Best and Ideal Worst hypothetical canteen using five canteen criteria plus dish ratings, with Bayesian shrinkage to correct for thin review samples.</p>
+        </div>
+
+        <h2 class="mb-2">1. Select Decision Profile</h2>
+        <div class="profile-tabs" id="profileTabs">
+            <button onclick="loadRanking('overall')" class="profile-tab active" id="tab-overall">🌟 Overall (Balanced)</button>
+            <button onclick="loadRanking('hangout')" class="profile-tab" id="tab-hangout">☕ Hangout (Cleanliness & Hygiene)</button>
+            <button onclick="loadRanking('quick_bite')" class="profile-tab" id="tab-quick_bite">⚡ Quick Bite (Speed First)</button>
+            <button onclick="loadRanking('budget')" class="profile-tab" id="tab-budget">💰 Budget-Conscious (Price First)</button>
+        </div>
+
+        <h2 class="mb-2 mt-4">2. TOPSIS Podium Results</h2>
+        <div class="podium-grid" id="podiumGrid">
+            <!-- Injected by JavaScript -->
+        </div>
+
+        <!-- Empirical Table -->
+        <div class="card mb-3">
+            <div class="card-header"><h3>Underlying Criteria Averages (1 to 5 Stars)</h3></div>
+            <div class="table-responsive">
+                <table class="modern-table">
+                    <thead>
+                        <tr>
+                            <th>Canteen</th>
+                            <th>Price / Value</th>
+                            <th>Food Quality</th>
+                            <th>Cleanliness</th>
+                            <th>Speed</th>
+                            <th>Hygiene</th>
+                            <th>Dish Rating</th>
+                            <th class="text-right">Ratings</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rawTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/navbar.js"></script>
+    <script>
+        async function loadRanking(profile = 'overall') {
+            document.querySelectorAll('.profile-tab').forEach(b => b.classList.remove('active'));
+            const activeTab = document.getElementById('tab-' + profile);
+            if (activeTab) activeTab.classList.add('active');
+
+            const res = await fetch(`/api/compare?profile=${profile}`);
+            const data = await res.json();
+
+            // 1. Render Podium
+            const medals = ['🥇', '🥈', '🥉'];
+            document.getElementById('podiumGrid').innerHTML = data.ranking.map(r => {
+                const scorePct = (r.score * 100).toFixed(1);
+                return `
+                <div class="podium-card rank-${Math.min(r.rank, 3)}">
+                    <div class="podium-badge">${medals[r.rank - 1] || '🎖️'}</div>
+                    <span class="podium-rank-tag">Rank #${r.rank}</span>
+                    <h3 class="podium-name">${r.cname}</h3>
+                    <div class="podium-score-pill">Score: ${r.score.toFixed(4)}</div>
+                    <div style="width: 100%;">
+                        <div class="flex justify-between" style="font-size: 0.75rem; color: var(--slate-500); font-weight: 600;">
+                            <span>Ideal Proximity</span>
+                            <span>${scorePct}%</span>
+                        </div>
+                        <div class="score-bar-container">
+                            <div class="score-bar-fill" style="width: ${scorePct}%;"></div>
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            // 2. Render Raw Table
+            document.getElementById('rawTableBody').innerHTML = data.rawAverages.map(raw => `
+                <tr>
+                    <td class="td-strong">${raw.cname}</td>
+                    <td class="td-number">${raw.avg_price_rating} ★</td>
+                    <td class="td-number">${raw.avg_quality_rating} ★</td>
+                    <td class="td-number">${raw.avg_cleanliness_rating} ★</td>
+                    <td class="td-number">${raw.avg_speed_rating} ★</td>
+                    <td class="td-number">${raw.avg_hygiene_rating} ★</td>
+                    <td class="td-number">${raw.avg_dish_rating === null ? '—' : `${raw.avg_dish_rating} ★`}</td>
+                    <td class="td-number text-right">${raw.total_ratings}</td>
+                </tr>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => loadRanking('overall'));
+    </script>
+</body>
+</html>

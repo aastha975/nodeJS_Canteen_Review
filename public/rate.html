@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rate Canteen — CampusBite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <main class="main-content">
+        <div id="alertBox"></div>
+        <div class="page-hero">
+            <div class="page-hero-title-group">
+                <a href="canteens.html" class="back-link"><i data-lucide="arrow-left"></i> Back to Canteens</a>
+                <h1 class="page-title" id="pageTitle">Rate Canteen</h1>
+                <p class="page-subtitle">Your rating helps power the campus TOPSIS ranking engine.</p>
+            </div>
+        </div>
+
+        <div class="card" style="max-width: 760px; margin: 0 auto;">
+            <div class="card-header">
+                <h3>5-Criteria Evaluation</h3>
+                <span style="font-size: 0.8rem; color: var(--slate-500);">1 = Poor · 5 = Excellent</span>
+            </div>
+            <div class="card-body">
+                <form id="ratingForm">
+                    <div id="criteriaList"></div>
+                    <div class="mt-4 flex justify-between items-center" style="border-top: 1px solid var(--slate-100); padding-top: 1.25rem;">
+                        <a href="canteens.html" class="btn btn-ghost btn-sm">Cancel</a>
+                        <button type="submit" class="btn btn-primary btn-lg"><i data-lucide="send"></i> Submit Evaluation</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/navbar.js"></script>
+    <script>
+        const cid = new URLSearchParams(window.location.search).get('cid');
+        const alertBox = document.getElementById('alertBox');
+        const criteria = [
+            { key: 'price', title: 'Price & Value', description: 'Affordability and portion size relative to cost', icon: 'wallet' },
+            { key: 'quality', title: 'Food Quality & Taste', description: 'Freshness, flavor, and preparation standard', icon: 'utensils' },
+            { key: 'cleanliness', title: 'Cleanliness & Ambiance', description: 'Table cleanliness, sanitation, and seating', icon: 'sparkles' },
+            { key: 'speed', title: 'Speed of Service', description: 'Queue waiting time and counter turnaround', icon: 'zap' },
+            { key: 'hygiene', title: 'Food Hygiene & Safety', description: 'Food handling, utensil cleanliness, and storage', icon: 'shield-check' }
+        ];
+
+        function showAlert(message, type = 'error') {
+            alertBox.innerHTML = `<div class="alert alert-${type}"><i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}"></i><div>${message}</div></div>`;
+            lucide.createIcons();
+        }
+
+        async function loadCanteen() {
+            if (!cid || !/^\d+$/.test(cid)) throw new Error('A valid canteen was not specified.');
+            const response = await fetch(`/api/canteens/${cid}/menu`);
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Canteen not found.');
+            document.title = `Rate ${data.canteen.cname} — CampusBite`;
+            document.getElementById('pageTitle').textContent = `Rate ${data.canteen.cname}`;
+        }
+
+        function renderCriteria() {
+            document.getElementById('criteriaList').innerHTML = criteria.map(criterion => `
+                <div class="rating-criterion-row">
+                    <div class="criterion-info">
+                        <div class="criterion-title"><i data-lucide="${criterion.icon}" style="color: var(--primary-600); vertical-align: -0.15em;"></i> ${criterion.title}</div>
+                        <div class="criterion-desc">${criterion.description}</div>
+                    </div>
+                    <input type="hidden" id="input-${criterion.key}" value="0">
+                    <div class="star-picker" role="radiogroup" aria-label="${criterion.title}">
+                        ${[1, 2, 3, 4, 5].map(value => `<button type="button" class="star-btn" data-criterion="${criterion.key}" data-value="${value}">${value} ★</button>`).join('')}
+                    </div>
+                </div>
+            `).join('');
+
+            document.querySelectorAll('.star-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const key = button.dataset.criterion;
+                    const value = Number(button.dataset.value);
+                    document.getElementById(`input-${key}`).value = value;
+                    document.querySelectorAll(`[data-criterion="${key}"]`).forEach(star => {
+                        star.classList.toggle('selected', Number(star.dataset.value) <= value);
+                    });
+                });
+            });
+            lucide.createIcons();
+        }
+
+        document.getElementById('ratingForm').addEventListener('submit', async event => {
+            event.preventDefault();
+            const values = Object.fromEntries(criteria.map(criterion => [
+                criterion.key,
+                Number(document.getElementById(`input-${criterion.key}`).value)
+            ]));
+
+            if (Object.values(values).some(value => value < 1 || value > 5)) {
+                showAlert('Please select 1 to 5 stars for every criterion.');
+                return;
+            }
+
+            const response = await fetch(`/api/canteens/${cid}/rate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(values)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                showAlert(data.error || 'Could not submit rating.');
+                return;
+            }
+            showAlert(data.message, 'success');
+            document.getElementById('ratingForm').reset();
+            document.querySelectorAll('.star-btn').forEach(star => star.classList.remove('selected'));
+        });
+
+        renderCriteria();
+        loadCanteen().catch(error => showAlert(error.message));
+    </script>
+</body>
+</html>

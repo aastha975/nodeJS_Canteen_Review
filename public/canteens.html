@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus Canteens — CampusBite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <main class="main-content">
+        <div class="page-hero">
+            <div class="page-hero-title-group">
+                <a href="dashboard.html" class="back-link"><i data-lucide="arrow-left"></i> Back to Dashboard</a>
+                <h1 class="page-title">Campus Canteens</h1>
+                <p class="page-subtitle">Explore dining halls, view menus, submit reviews, and log check-ins.</p>
+            </div>
+        </div>
+
+        <div id="alertBox"></div>
+        <div class="canteen-grid" id="canteensGrid">
+            <!-- Populated via JavaScript fetch() -->
+        </div>
+    </main>
+
+    <script src="js/navbar.js"></script>
+    <script>
+        async function loadCanteens() {
+            const res = await fetch('/api/canteens');
+            const canteens = await res.json();
+            const grid = document.getElementById('canteensGrid');
+
+            grid.innerHTML = canteens.map(c => {
+                const cClass = 'canteen-' + c.cname.toLowerCase().replace(/[^a-z0-9]/g, '');
+                return `
+                <div class="canteen-card">
+                    <div class="canteen-card-hero ${cClass}">
+                        <span class="canteen-location-tag"><i data-lucide="map-pin"></i> ${c.location || 'Campus'}</span>
+                        <h2 class="canteen-card-name">${c.cname}</h2>
+                    </div>
+                    <div class="canteen-card-body">
+                        <div class="canteen-metrics-row">
+                            <div class="metric-item">
+                                <span class="metric-label">Food Quality</span>
+                                <span class="metric-value">★ ${c.avg_quality_rating ? Number(c.avg_quality_rating).toFixed(1) : '—'}</span>
+                            </div>
+                            <div class="metric-item text-right">
+                                <span class="metric-label">Ratings</span>
+                                <span class="metric-value">${c.total_ratings || 0}</span>
+                            </div>
+                        </div>
+                        <div class="canteen-actions mt-2">
+                            <a href="menu.html?cid=${c.cid}" class="btn btn-outline btn-sm"><i data-lucide="book-open"></i> Menu</a>
+                            <a href="feedback.html?cid=${c.cid}" class="btn btn-secondary btn-sm"><i data-lucide="message-square"></i> Reviews</a>
+                            <a href="rate.html?cid=${c.cid}" class="btn btn-outline btn-sm"><i data-lucide="star"></i> Rate</a>
+                            <div class="checkin-btn-wrap">
+                                <button onclick="checkIn(${c.cid})" class="btn btn-primary btn-sm w-full">
+                                    <i data-lucide="map-pin"></i> I'm here now (Check in)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        async function checkIn(cid) {
+            const res = await fetch(`/api/canteens/${cid}/checkin`, { method: 'POST' });
+            const data = await res.json();
+            const alertBox = document.getElementById('alertBox');
+            if (res.ok) {
+                alertBox.innerHTML = `<div class="alert alert-success"><i data-lucide="check-circle"></i><div>${data.message}</div></div>`;
+            } else {
+                alertBox.innerHTML = `<div class="alert alert-warning"><i data-lucide="clock"></i><div>${data.error}</div></div>`;
+            }
+            lucide.createIcons();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        document.addEventListener('DOMContentLoaded', loadCanteens);
+    </script>
+</body>
+</html>

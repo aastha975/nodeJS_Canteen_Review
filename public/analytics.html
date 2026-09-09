@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics & Crowds — CampusBite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <main class="main-content">
+        <div class="page-hero">
+            <div class="page-hero-title-group">
+                <a href="dashboard.html" class="back-link"><i data-lucide="arrow-left"></i> Back to Dashboard</a>
+                <h1 class="page-title">Dining Analytics & Crowds</h1>
+                <p class="page-subtitle">Visual analysis of peak footfall, criteria radars, and menu pricing.</p>
+            </div>
+        </div>
+
+        <div class="analytics-grid">
+            <div class="chart-card col-span-2">
+                <div class="chart-header">
+                    <h3 class="chart-title"><i data-lucide="clock" style="color: var(--primary-600);"></i> Hourly Footfall Patterns</h3>
+                    <span class="chart-sub">Student & faculty check-ins by hour (8 AM to 8 PM)</span>
+                </div>
+                <div class="chart-container" style="height: 320px;">
+                    <canvas id="crowdChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3 class="chart-title"><i data-lucide="radar" style="color: var(--amber-600);"></i> Criteria Benchmark Radar</h3>
+                    <span class="chart-sub">Quality, Cleanliness, Price, Speed, Hygiene (out of 5)</span>
+                </div>
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3 class="chart-title"><i data-lucide="badge-dollar-sign" style="color: var(--emerald-600);"></i> Average Menu Dish Price</h3>
+                    <span class="chart-sub">Average item price in INR (₹)</span>
+                </div>
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="priceChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/navbar.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const res = await fetch('/api/analytics');
+            const data = await res.json();
+
+            const hours = Array.from({length: 13}, (_, i) => i + 8); // 8 to 20
+            const hourLabels = hours.map(h => (h % 12 === 0 ? 12 : h % 12) + (h < 12 ? ' AM' : ' PM'));
+
+            // 1. Crowd Chart
+            const crowdByCanteen = {};
+            data.crowds.forEach(c => {
+                if (!crowdByCanteen[c.cname]) crowdByCanteen[c.cname] = {};
+                crowdByCanteen[c.cname][c.hour_of_day] = parseInt(c.checkin_count, 10);
+            });
+
+            const colors = {
+                'Bappa': { border: '#0D9488', bg: 'rgba(13, 148, 136, 0.2)' },
+                'IMDR':  { border: '#2563EB', bg: 'rgba(37, 99, 235, 0.2)' },
+                'Media': { border: '#DB2777', bg: 'rgba(219, 39, 119, 0.2)' }
+            };
+
+            const crowdDatasets = Object.keys(crowdByCanteen).map(name => ({
+                label: name,
+                data: hours.map(h => crowdByCanteen[name][h] || 0),
+                borderColor: colors[name]?.border || '#3B82F6',
+                backgroundColor: colors[name]?.bg || 'rgba(59, 130, 246, 0.2)',
+                fill: true,
+                tension: 0.3
+            }));
+
+            new Chart(document.getElementById('crowdChart'), {
+                type: 'line',
+                data: { labels: hourLabels, datasets: crowdDatasets },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // 2. Radar Chart
+            const radarDatasets = data.criteria.map(c => ({
+                label: c.cname,
+                data: [
+                    parseFloat(c.avg_price_rating) || 0,
+                    parseFloat(c.avg_quality_rating) || 0,
+                    parseFloat(c.avg_cleanliness_rating) || 0,
+                    parseFloat(c.avg_speed_rating) || 0,
+                    parseFloat(c.avg_hygiene_rating) || 0
+                ],
+                borderColor: colors[c.cname]?.border || '#64748B',
+                backgroundColor: colors[c.cname]?.bg || 'rgba(100, 116, 139, 0.2)'
+            }));
+
+            new Chart(document.getElementById('radarChart'), {
+                type: 'radar',
+                data: {
+                    labels: ['Price / Value', 'Food Quality', 'Cleanliness', 'Speed', 'Hygiene'],
+                    datasets: radarDatasets
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { r: { max: 5, min: 0 } } }
+            });
+
+            // 3. Price Bar Chart
+            new Chart(document.getElementById('priceChart'), {
+                type: 'bar',
+                data: {
+                    labels: data.prices.map(p => p.cname),
+                    datasets: [{
+                        data: data.prices.map(p => parseFloat(p.avg_item_price) || 0),
+                        backgroundColor: data.prices.map(p => colors[p.cname]?.border || '#3B82F6'),
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { ticks: { callback: v => '₹' + v } } }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

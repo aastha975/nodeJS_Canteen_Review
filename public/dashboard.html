@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — CampusBite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <main class="main-content">
+        <section class="dash-greeting">
+            <h1 class="dash-greeting-title" id="welcomeMsg">Welcome to CampusBite</h1>
+            <p class="dash-greeting-sub">Multi-Criteria TOPSIS Intelligence & Campus Dining Transparency.</p>
+        </section>
+
+        <!-- Stats Strip -->
+        <div class="quick-stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon-wrap blue"><i data-lucide="store"></i></div>
+                <div>
+                    <div class="stat-val" id="statCanteens">—</div>
+                    <div class="stat-label">Active Canteens</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap amber"><i data-lucide="utensils"></i></div>
+                <div>
+                    <div class="stat-val" id="statDishes">—</div>
+                    <div class="stat-label">Available Dishes</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap emerald"><i data-lucide="star"></i></div>
+                <div>
+                    <div class="stat-val" id="statRatings">—</div>
+                    <div class="stat-label">Criteria Ratings</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon-wrap purple"><i data-lucide="message-square"></i></div>
+                <div>
+                    <div class="stat-val" id="statReviews">—</div>
+                    <div class="stat-label">Student Reviews</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Cards Grid -->
+        <h2 class="mb-2">Explore Features</h2>
+        <div class="action-cards-grid">
+            <a href="canteens.html" class="action-card">
+                <div>
+                    <div class="action-card-header">
+                        <div class="action-card-icon" style="background: linear-gradient(135deg, #0284C7, #0369A1);"><i data-lucide="store"></i></div>
+                        <i data-lucide="arrow-right" class="action-card-arrow"></i>
+                    </div>
+                    <div class="action-card-title">Browse Canteens</div>
+                    <div class="action-card-desc">Check out menus for Bappa, IMDR, and Media canteens, submit check-ins, and read peer feedback.</div>
+                </div>
+                <div class="mt-3"><span class="btn btn-outline btn-sm">View Directory</span></div>
+            </a>
+
+            <a href="compare.html" class="action-card">
+                <div>
+                    <div class="action-card-header">
+                        <div class="action-card-icon" style="background: linear-gradient(135deg, #D97706, #B45309);"><i data-lucide="trophy"></i></div>
+                        <i data-lucide="arrow-right" class="action-card-arrow"></i>
+                    </div>
+                    <div class="action-card-title">TOPSIS Ranking Engine</div>
+                    <div class="action-card-desc">Calculate mathematically optimal canteens using customizable multi-criteria weights.</div>
+                </div>
+                <div class="mt-3"><span class="btn btn-amber btn-sm">Run MCDM Engine</span></div>
+            </a>
+
+            <a href="dish-compare.html" class="action-card">
+                <div>
+                    <div class="action-card-header">
+                        <div class="action-card-icon" style="background: linear-gradient(135deg, #059669, #047857);"><i data-lucide="search"></i></div>
+                        <i data-lucide="arrow-right" class="action-card-arrow"></i>
+                    </div>
+                    <div class="action-card-title">Dish Value Finder</div>
+                    <div class="action-card-desc">Find which canteen sells the highest rated dish or highest rating per rupee.</div>
+                </div>
+                <div class="mt-3"><span class="btn btn-outline btn-sm">Find Best Dish</span></div>
+            </a>
+
+            <a href="analytics.html" class="action-card">
+                <div>
+                    <div class="action-card-header">
+                        <div class="action-card-icon" style="background: linear-gradient(135deg, #4F46E5, #3730A3);"><i data-lucide="bar-chart-3"></i></div>
+                        <i data-lucide="arrow-right" class="action-card-arrow"></i>
+                    </div>
+                    <div class="action-card-title">Insights & Analytics</div>
+                    <div class="action-card-desc">Hourly crowd distributions, performance radars, and menu pricing visualised with charts.</div>
+                </div>
+                <div class="mt-3"><span class="btn btn-outline btn-sm">View Charts</span></div>
+            </a>
+        </div>
+    </main>
+
+    <script src="js/navbar.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Load user profile
+            const meRes = await fetch('/api/me');
+            const meData = await meRes.json();
+            if (meData.user) {
+                document.getElementById('welcomeMsg').innerText = `Welcome back, ${meData.user.name}!`;
+            }
+
+            // Load quick stats from Node.js
+            const statsRes = await fetch('/api/stats');
+            const stats = await statsRes.json();
+            if (statsRes.ok) {
+                document.getElementById('statCanteens').innerText = stats.canteens;
+                document.getElementById('statDishes').innerText = stats.menu_items;
+                document.getElementById('statRatings').innerText = stats.ratings;
+                document.getElementById('statReviews').innerText = stats.reviews;
+            }
+        });
+    </script>
+</body>
+</html>

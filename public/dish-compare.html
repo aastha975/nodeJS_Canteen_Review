@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compare Dishes — CampusBite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <main class="main-content">
+        <div class="page-hero">
+            <div class="page-hero-title-group">
+                <a href="dashboard.html" class="back-link"><i data-lucide="arrow-left"></i> Back to Dashboard</a>
+                <h1 class="page-title">Compare Dishes Across Campus</h1>
+                <p class="page-subtitle">Find the highest-rated or best-value dish across the campus canteens.</p>
+            </div>
+        </div>
+
+        <div id="alertBox"></div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; align-items: end;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="item" class="form-label">Select Dish</label>
+                        <select id="item" class="form-control">
+                            <option value="">-- Choose a dish to compare --</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="sort" class="form-label">Sort Metric</label>
+                        <select id="sort" class="form-control">
+                            <option value="rating">Highest Rated</option>
+                            <option value="value">Best Value</option>
+                        </select>
+                    </div>
+                    <button id="compareBtn" type="button" class="btn btn-primary">
+                        <i data-lucide="search"></i> Compare Across Canteens
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <section id="resultsSection" hidden>
+            <div class="flex items-center justify-between mb-2">
+                <h2 id="resultsTitle">Comparison Results</h2>
+                <span id="sortLabel" style="font-size: 0.85rem; color: var(--slate-500);"></span>
+            </div>
+            <div id="resultsGrid" class="dish-grid-results mb-4"></div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="modern-table">
+                        <thead>
+                            <tr>
+                                <th>Canteen</th>
+                                <th>Price (₹)</th>
+                                <th>Average Rating</th>
+                                <th>Reviews</th>
+                                <th>Value Score</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="js/navbar.js"></script>
+    <script>
+        const itemSelect = document.getElementById('item');
+        const sortSelect = document.getElementById('sort');
+        const resultsSection = document.getElementById('resultsSection');
+        const resultsGrid = document.getElementById('resultsGrid');
+        const resultsTable = document.getElementById('resultsTable');
+        const alertBox = document.getElementById('alertBox');
+
+        function showError(message) {
+            alertBox.innerHTML = `<div class="alert alert-error"><i data-lucide="alert-circle"></i><div>${message}</div></div>`;
+            lucide.createIcons();
+        }
+
+        async function loadDishes() {
+            const response = await fetch('/api/dishes');
+            if (!response.ok) throw new Error('Failed to load dishes.');
+            const dishes = await response.json();
+            dishes.forEach(dish => {
+                const option = document.createElement('option');
+                option.value = dish;
+                option.textContent = dish;
+                itemSelect.appendChild(option);
+            });
+        }
+
+        async function compareDish() {
+            const item = itemSelect.value;
+            if (!item) {
+                showError('Please select a dish first.');
+                return;
+            }
+
+            const sort = sortSelect.value;
+            const response = await fetch(`/api/dishes/compare?item=${encodeURIComponent(item)}&sort=${sort}`);
+            if (!response.ok) throw new Error('Failed to compare dish.');
+            const results = await response.json();
+
+            resultsSection.hidden = false;
+            document.getElementById('resultsTitle').textContent = `Results for "${item}"`;
+            document.getElementById('sortLabel').innerHTML = `Sorted by: <strong>${sort === 'value' ? 'Best Value' : 'Highest Rating'}</strong>`;
+
+            if (results.length === 0) {
+                resultsGrid.innerHTML = '<div class="card p-4 text-center"><p style="color: var(--slate-500);">No canteens currently serve this dish.</p></div>';
+                resultsTable.innerHTML = '';
+                return;
+            }
+
+            resultsGrid.innerHTML = results.map((result, index) => `
+                <div class="dish-card ${index === 0 ? 'best-value' : ''}">
+                    ${index === 0 ? `<div class="best-value-ribbon">★ ${sort === 'value' ? 'Best Value' : 'Top Rated'}</div>` : ''}
+                    <div>
+                        <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--slate-400);">Canteen</div>
+                        <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--slate-900); margin: 0.2rem 0;">${result.cname}</h3>
+                        <div class="dish-card-price">₹${Number(result.price).toFixed(2)}</div>
+                        <div class="flex items-center gap-1 mb-2">
+                            <i data-lucide="star" class="star-filled"></i>
+                            <span style="font-size: 1.05rem; font-weight: 700; color: var(--slate-900);">${result.avg_rating === null ? 'No ratings' : Number(result.avg_rating).toFixed(1)}</span>
+                            <span style="font-size: 0.8rem; color: var(--slate-500);">(${result.total_ratings} reviews)</span>
+                        </div>
+                    </div>
+                    <div style="padding-top: 0.75rem; border-top: 1px solid var(--slate-100); font-size: 0.82rem; color: var(--slate-600);">
+                        <div class="flex justify-between"><span>Value Score:</span><strong>${result.value_score === null ? '—' : Number(result.value_score).toFixed(4)}</strong></div>
+                    </div>
+                </div>
+            `).join('');
+
+            resultsTable.innerHTML = results.map(result => `
+                <tr>
+                    <td class="td-strong">${result.cname}</td>
+                    <td class="td-number">₹${Number(result.price).toFixed(2)}</td>
+                    <td class="td-number">${result.avg_rating === null ? 'No ratings' : `${Number(result.avg_rating).toFixed(2)} ★`}</td>
+                    <td class="td-number">${result.total_ratings}</td>
+                    <td class="td-number">${result.value_score === null ? '—' : Number(result.value_score).toFixed(4)}</td>
+                </tr>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        document.getElementById('compareBtn').addEventListener('click', () => {
+            compareDish().catch(error => showError(error.message));
+        });
+
+        loadDishes().catch(error => showError(error.message));
+        lucide.createIcons();
+    </script>
+</body>
+</html>
